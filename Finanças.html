@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minhas Finanças</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        canvas {
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="w-full max-w-5xl p-4 sm:p-6">
+        <!-- Login Screen -->
+        <div id="login-screen" class="bg-white rounded-xl shadow-xl p-6 sm:p-8 fade-in">
+            <h1 class="text-2xl sm:text-3xl font-bold text-center text-gray-800 mb-6">Minhas Finanças</h1>
+            <div class="space-y-4">
+                <input id="username" type="text" placeholder="Usuário" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input id="password" type="password" placeholder="Senha" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="login()" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700 transition">Entrar</button>
+                <p id="login-error" class="text-red-500 text-center hidden">Usuário ou senha incorretos</p>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard" class="bg-white rounded-xl shadow-xl p-6 sm:p-8 fade-in hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6">
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-800">Bem-vindo, <span id="user-name"></span></h1>
+                <button onclick="logout()" class="mt-4 sm:mt-0 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">Sair</button>
+            </div>
+
+            <!-- Dashboard Charts -->
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold text-gray-700 mb-4">Visão Geral</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-600 mb-2">Gastos por Categoria</h3>
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-600 mb-2">Comparativo Mensal</h3>
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Section -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
+                <!-- Salário -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-700 mb-2">Salário Mensal</h2>
+                    <input id="salary" type="number" placeholder="R$ 0,00" class="w-full p-3 border rounded-lg">
+                    <button onclick="addSalary()" class="mt-2 w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Adicionar</button>
+                </div>
+                <!-- Gastos -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-700 mb-2">Gastos</h2>
+                    <input id="expense-desc" type="text" placeholder="Descrição" class="w-full p-3 border rounded-lg mb-2">
+                    <input id="expense-amount" type="number" placeholder="R$ 0,00" class="w-full p-3 border rounded-lg mb-2">
+                    <select id="expense-type" class="w-full p-3 border rounded-lg mb-2">
+                        <option value="mensal">Mensal</option>
+                        <option value="anual">Anual</option>
+                    </select>
+                    <select id="expense-category" class="w-full p-3 border rounded-lg mb-2">
+                        <option value="Alimentação">Alimentação</option>
+                        <option value="Moradia">Moradia</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Lazer">Lazer</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                    <input id="new-category" type="text" placeholder="Nova categoria" class="w-full p-3 border rounded-lg mb-2">
+                    <button onclick="addCategory()" class="w-full bg-gray-600 text-white p-2 rounded-lg hover:bg-gray-700">Adicionar Categoria</button>
+                    <select id="expense-month" class="w-full p-3 border rounded-lg mt-2">
+                        <option value="all">Todos</option>
+                        <option value="1">Janeiro</option>
+                        <option value="2">Fevereiro</option>
+                        <option value="3">Março</option>
+                        <option value="4">Abril</option>
+                        <option value="5">Maio</option>
+                        <option value="6">Junho</option>
+                        <option value="7">Julho</option>
+                        <option value="8">Agosto</option>
+                        <option value="9">Setembro</option>
+                        <option value="10">Outubro</option>
+                        <option value="11">Novembro</option>
+                        <option value="12">Dezembro</option>
+                    </select>
+                    <button onclick="addExpense()" class="mt-2 w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Adicionar Gasto</button>
+                </div>
+            </div>
+
+            <!-- Search and Filter Section -->
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold text-gray-700 mb-2">Buscar Gastos</h2>
+                <input id="search-expense" type="text" placeholder="Buscar por descrição" class="w-full p-3 border rounded-lg mb-2">
+                <select id="filter-category" class="w-full p-3 border rounded-lg mb-2">
+                    <option value="all">Todas Categorias</option>
+                    <option value="Alimentação">Alimentação</option>
+                    <option value="Moradia">Moradia</option>
+                    <option value="Transporte">Transporte</option>
+                    <option value="Lazer">Lazer</option>
+                    <option value="Outros">Outros</option>
+                </select>
+                <button onclick="searchExpenses()" class="w-full bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700">Buscar</button>
+                <div id="search-results" class="mt-4 bg-gray-100 p-4 rounded-lg hidden">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2">Resultados</h3>
+                    <p id="search-content"></p>
+                </div>
+            </div>
+
+            <!-- Report Section -->
+            <div class="mb-6">
+                <h2 class="text-xl font-semibold text-gray-700 mb-2">Relatórios</h2>
+                <select id="report-type" class="p-3 border rounded-lg">
+                    <option value="mensal">Mensal</option>
+                    <option value="anual">Anual</option>
+                </select>
+                <select id="report-month" class="p-3 border rounded-lg">
+                    <option value="all">Todos</option>
+                    <option value="1">Janeiro</option>
+                    <option value="2">Fevereiro</option>
+                    <option value="3">Março</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Maio</option>
+                    <option value="6">Junho</option>
+                    <option value="7">Julho</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Setembro</option>
+                    <option value="10">Outubro</option>
+                    <option value="11">Novembro</option>
+                    <option value="12">Dezembro</option>
+                </select>
+                <button onclick="generateReport()" class="mt-2 bg-green-600 text-white p-3 rounded-lg hover:bg-green-700">Gerar Relatório</button>
+                <button onclick="exportToPDF()" class="mt-2 bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Exportar PDF</button>
+                <button onclick="shareReport()" class="mt-2 bg-yellow-600 text-white p-3 rounded-lg hover:bg-yellow-700">Compartilhar com Esposa</button>
+            </div>
+
+            <!-- Report Output -->
+            <div id="report-output" class="bg-gray-100 p-4 rounded-lg hidden">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Relatório</h3>
+                <p id="report-content"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Inicializa o cliente Supabase após o carregamento da biblioteca
+        let supabase;
+        let currentUser = null;
+        let categoryChart, monthlyChart;
+
+        // Aguarda o carregamento do Supabase
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.Supabase) {
+                supabase = Supabase.createClient('https://bxohyqifygcharqrdhjs.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ4b2h5cWlmeWdjaGFycXJkaGpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDU0MDcyMDksImV4cCI6MjA2MDk4MzIwOX0.l68zME29XJpFuC2YyNRg9X21NnCYwSYcGxyhKNEH5qI');
+                document.getElementById('login-screen').classList.remove('hidden');
+            } else {
+                console.error('Supabase library not loaded');
+                alert('Erro ao carregar a biblioteca Supabase. Verifique a conexão com a internet.');
+            }
+        });
+
+        async function loadInitialData() {
+            // Carrega categorias
+            const { data: categories, error } = await supabase.from('categories').select('name');
+            if (error) {
+                alert('Erro ao carregar categorias: ' + error.message);
+                return;
+            }
+            const categorySelect = document.getElementById('expense-category');
+            const filterSelect = document.getElementById('filter-category');
+            categorySelect.innerHTML = '<option value="all">Todas Categorias</option>';
+            filterSelect.innerHTML = '<option value="all">Todas Categorias</option>';
+            categories.forEach(cat => {
+                categorySelect.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+                filterSelect.innerHTML += `<option value="${cat.name}">${cat.name}</option>`;
+            });
+            updateCharts();
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: `${username.toLowerCase()}@example.com`,
+                password: password
+            });
+
+            if (error || !data.user) {
+                document.getElementById('login-error').classList.remove('hidden');
+                return;
+            }
+
+            const { data: userData } = await supabase.from('users').select('*').eq('username', username).single();
+            if (userData) {
+                currentUser = userData;
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                document.getElementById('user-name').textContent = userData.name;
+                await loadInitialData();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        }
+
+        async function logout() {
+            await supabase.auth.signOut();
+            currentUser = null;
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('login-error').classList.add('hidden');
+        }
+
+        async function addSalary() {
+            const salary = parseFloat(document.getElementById('salary').value);
+            const month = document.getElementById('expense-month').value;
+
+            if (salary > 0) {
+                const { error } = await supabase.from('salaries').insert({
+                    user_id: currentUser.id,
+                    amount: salary,
+                    month: month === 'all' ? null : parseInt(month)
+                });
+                if (error) {
+                    alert('Erro ao adicionar salário: ' + error.message);
+                    return;
+                }
+                alert('Salário adicionado com sucesso!');
+                document.getElementById('salary').value = '';
+                updateCharts();
+            } else {
+                alert('Insira um valor válido para o salário.');
+            }
+        }
+
+        async function addCategory() {
+            const newCategory = document.getElementById('new-category').value.trim();
+            if (newCategory) {
+                const { data, error } = await supabase.from('categories').insert({ name: newCategory }).select().single();
+                if (error) {
+                    alert('Erro ao adicionar categoria: ' + error.message);
+                    return;
+                }
+                const categorySelect = document.getElementById('expense-category');
+                const filterSelect = document.getElementById('filter-category');
+                categorySelect.innerHTML += `<option value="${data.name}">${data.name}</option>`;
+                filterSelect.innerHTML += `<option value="${data.name}">${data.name}</option>`;
+                alert('Categoria adicionada com sucesso!');
+                document.getElementById('new-category').value = '';
+            } else {
+                alert('Digite uma categoria válida.');
+            }
+        }
+
+        async function addExpense() {
+            const desc = document.getElementById('expense-desc').value;
+            const amount = parseFloat(document.getElementById('expense-amount').value);
+            const type = document.getElementById('expense-type').value;
+            const category = document.getElementById('expense-category').value;
+            const month = document.getElementById('expense-month').value;
+
+            if (desc && amount > 0 && category) {
+                const { error } = await supabase.from('expenses').insert({
+                    user_id: currentUser.id,
+                    description: desc,
+                    amount: amount,
+                    type: type,
+                    category: category,
+                    month: month === 'all' ? null : parseInt(month)
+                });
+                if (error) {
+                    alert('Erro ao adicionar gasto: ' + error.message);
+                    return;
+                }
+                alert('Gasto adicionado com sucesso!');
+                document.getElementById('expense-desc').value = '';
+                document.getElementById('expense-amount').value = '';
+                updateCharts();
+            } else {
+                alert('Preencha todos os campos corretamente.');
+            }
+        }
+
+        async function searchExpenses() {
+            const searchTerm = document.getElementById('search-expense').value.toLowerCase();
+            const filterCategory = document.getElementById('filter-category').value;
+
+            let query = supabase.from('expenses').select('*');
+            if (searchTerm) query = query.ilike('description', `%${searchTerm}%`);
+            if (filterCategory !== 'all') query = query.eq('category', filterCategory);
+
+            const { data: results, error } = await query;
+            if (error) {
+                alert('Erro ao buscar gastos: ' + error.message);
+                return;
+            }
+
+            let content = '';
+            if (results.length > 0) {
+                results.forEach(e => {
+                    content += `- ${e.description}: R$ ${e.amount.toFixed(2)} (${e.category}, ${e.type})<br>`;
+                });
+            } else {
+                content = 'Nenhum gasto encontrado.';
+            }
+
+            document.getElementById('search-content').innerHTML = content;
+            document.getElementById('search-results').classList.remove('hidden');
+        }
+
+        async function generateReport() {
+            const reportType = document.getElementById('report-type').value;
+            const reportMonth = document.getElementById('report-month').value;
+
+            // Busca salários
+            let salaryQuery = supabase.from('salaries').select('*');
+            if (reportType === 'mensal' && reportMonth !== 'all') {
+                salaryQuery = salaryQuery.eq('month', parseInt(reportMonth));
+            }
+            const { data: salaries } = await salaryQuery;
+
+            // Busca gastos
+            let expenseQuery = supabase.from('expenses').select('*');
+            if (reportType === 'mensal' && reportMonth !== 'all') {
+                expenseQuery = expenseQuery.eq('month', parseInt(reportMonth));
+            }
+            const { data: expenses } = await expenseQuery;
+
+            // Calcula totais
+            const totalSalary = salaries.reduce((sum, s) => sum + s.amount, 0);
+            const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+            // Gera conteúdo do relatório
+            let reportContent = '';
+            reportContent += `<strong>Salário Total:</strong> R$ ${totalSalary.toFixed(2)}<br>`;
+            reportContent += `<strong>Gastos Totais:</strong> R$ ${totalExpenses.toFixed(2)}<br>`;
+            reportContent += `<strong>Saldo:</strong> R$ ${(totalSalary - totalExpenses).toFixed(2)}<br><br>`;
+            reportContent += `<strong>Detalhes dos Gastos:</strong><br>`;
+            expenses.forEach(e => {
+                reportContent += `- ${e.description}: R$ ${e.amount.toFixed(2)} (${e.category}, ${e.type})<br>`;
+            });
+
+            document.getElementById('report-content').innerHTML = reportContent;
+            document.getElementById('report-output').classList.remove('hidden');
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const reportContent = document.getElementById('report-content').innerText;
+
+            if (!reportContent) {
+                alert('Gere um relatório antes de exportar.');
+                return;
+            }
+
+            doc.setFontSize(12);
+            doc.text("Relatório Financeiro", 10, 10);
+            doc.text(reportContent, 10, 20);
+            doc.save('relatorio_financeiro.pdf');
+        }
+
+        async function shareReport() {
+            const reportContent = document.getElementById('report-content').innerHTML;
+            if (reportContent) {
+                alert('Relatório compartilhado com sua esposa! (Os dados estão disponíveis para ambos no Supabase.)');
+            } else {
+                alert('Gere um relatório antes de compartilhar.');
+            }
+        }
+
+        async function updateCharts() {
+            // Gráfico de categorias
+            const { data: expenses } = await supabase.from('expenses').select('*');
+            const categoryData = {};
+            expenses.forEach(e => {
+                categoryData[e.category] = (categoryData[e.category] || 0) + e.amount;
+            });
+
+            const categoryLabels = Object.keys(categoryData);
+            const categoryValues = Object.values(categoryData);
+
+            if (categoryChart) categoryChart.destroy();
+            categoryChart = new Chart(document.getElementById('categoryChart'), {
+                type: 'pie',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        data: categoryValues,
+                        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            // Gráfico mensal
+            const monthlyData = Array(12).fill(0);
+            expenses.forEach(e => {
+                if (e.month) monthlyData[e.month - 1] += e.amount;
+            });
+
+            if (monthlyChart) monthlyChart.destroy();
+            monthlyChart = new Chart(document.getElementById('monthlyChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+                    datasets: [{
+                        label: 'Gastos Mensais',
+                        data: monthlyData,
+                        backgroundColor: '#36A2EB'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
